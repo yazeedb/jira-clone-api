@@ -1,5 +1,5 @@
 const express = require('express');
-const sessions = require('client-sessions');
+const clientSessions = require('client-sessions');
 const bodyParser = require('body-parser');
 const env = require('./env');
 
@@ -22,7 +22,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 app.use(
-  sessions({
+  clientSessions({
     cookieName: env.sessionName,
     secret: env.secret,
     duration: twoSeconds,
@@ -55,8 +55,6 @@ app.post('/login', (req, res) => {
 
 app.get('/user', (req, res) => {
   const { username } = req[env.sessionName];
-
-  console.log('username is', username);
 
   if (!username) {
     return res.status(401).json({
