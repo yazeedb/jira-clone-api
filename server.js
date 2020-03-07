@@ -1,11 +1,12 @@
 const express = require('express');
 const clientSessions = require('client-sessions');
 const bodyParser = require('body-parser');
-const env = require('./env');
+const { getEnvVariables } = require('./env');
 
 const app = express();
 const twoSeconds = 2000;
 const port = 8000;
+const env = getEnvVariables();
 
 const db = [
   {
@@ -24,7 +25,7 @@ app.use(bodyParser.json());
 app.use(
   clientSessions({
     cookieName: env.sessionName,
-    secret: env.secret,
+    secret: env.sessionSecret,
     duration: twoSeconds,
     cookie: {
       maxAge: twoSeconds,
@@ -32,6 +33,8 @@ app.use(
     }
   })
 );
+
+app.post('/signupViaGoogle', (req, res) => {});
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
