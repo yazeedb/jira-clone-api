@@ -1,6 +1,9 @@
 const express = require('express');
 const clientSessions = require('client-sessions');
 const bodyParser = require('body-parser');
+const mysql = require('mysql');
+const { OAuth2Client } = require('google-auth-library');
+const cors = require('cors');
 const { getEnvVariables } = require('./env');
 
 const app = express();
@@ -8,19 +11,18 @@ const twoSeconds = 2000;
 const port = 8000;
 const env = getEnvVariables();
 
-const db = [
-  {
-    username: 'yazeed',
-    password: '123'
-  },
-  {
-    username: 'bill',
-    password: '123'
-  }
-];
+const dbConnection = mysql.createConnection({
+  host: env.db.host,
+  user: env.db.username,
+  password: env.db.password,
+  database: env.db.dbName,
+  port: env.db.port
+});
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+app.use(cors());
 
 app.use(
   clientSessions({
@@ -34,39 +36,72 @@ app.use(
   })
 );
 
-app.post('/signupViaGoogle', (req, res) => {});
+app.post('/signupViaGoogle', (req, res) => {
+  const client = new OAuth2Client(env.googleClientId);
+  const { idToken } = req.body;
+
+  client
+    .verifyIdToken({
+      idToken,
+      audience: env.googleClientId
+    })
+    .then((ticket) => {
+      const { sub, email } = ticket.getPayload();
+      const sqlQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
+
+      dbConnection.query(sqlQuery, (error, results, fields) => {
+        if (error) {
+          throw error;
+        }
+
+        console.log('results:', results);
+
+        res.status(201).json({
+          message: 'User created!',
+          userId: sub
+        });
+      });
+    })
+    .catch(console.warn);
+});
 
 app.post('/login', (req, res) => {
-  const { username, password } = req.body;
+  const { idToken } = req.body;
+  const sqlQuery = `SELECT * FROM users WHERE googleId='${idToken}'`;
 
-  const existingUser = db.find(
-    (u) => u.username === username && u.password === password
-  );
+  dbConnection.query(sqlQuery, (error, results, fields) => {
+    if (error) {
+      throw error;
+    }
 
-  if (!existingUser) {
-    return res.status(401).json({
-      message: 'Username/password combo not found!'
+    if (results.length === 0) {
+      return res.status(401).json({
+        message: 'User not found!'
+      });
+    }
+
+    const [user] = results;
+
+    req[env.sessionName] = { user };
+
+    res.json({
+      message: 'Success!',
+      user
     });
-  }
-
-  req[env.sessionName] = { username };
-
-  return res.json({
-    message: 'Success!'
   });
 });
 
 app.get('/user', (req, res) => {
-  const { username } = req[env.sessionName];
+  const { user } = req[env.sessionName];
 
-  if (!username) {
+  if (!user) {
     return res.status(401).json({
       message: 'Unauthorized'
     });
   }
 
   return res.json({
-    username,
+    user,
     message: 'Success!'
   });
 });
