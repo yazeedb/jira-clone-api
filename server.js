@@ -22,7 +22,15 @@ const dbConnection = mysql.createConnection({
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-app.use(cors());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+  next();
+});
 
 app.use(
   clientSessions({
@@ -75,9 +83,11 @@ app.post('/login', (req, res) => {
     }
 
     if (results.length === 0) {
-      return res.status(401).json({
+      res.status(401).json({
         message: 'User not found!'
       });
+
+      return;
     }
 
     const [user] = results;
@@ -95,12 +105,14 @@ app.get('/user', (req, res) => {
   const { user } = req[env.sessionName];
 
   if (!user) {
-    return res.status(401).json({
+    res.status(401).json({
       message: 'Unauthorized'
     });
+
+    return;
   }
 
-  return res.json({
+  res.json({
     user,
     message: 'Success!'
   });
