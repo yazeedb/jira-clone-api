@@ -3,7 +3,8 @@ const clientSessions = require('client-sessions');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const { OAuth2Client } = require('google-auth-library');
-const cors = require('cors');
+const csurf = require('csurf');
+const cookieParser = require('cookie-parser');
 const { getEnvVariables } = require('./env');
 
 const app = express();
@@ -27,7 +28,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
+    'Origin, X-Requested-With, Content-Type, Accept, X-XSRF-TOKEN'
   );
   next();
 });
@@ -43,6 +44,16 @@ app.use(
     }
   })
 );
+
+app.use(cookieParser());
+
+app.use(csurf({ cookie: true }));
+
+app.get('/csrf-protection', (req, res) => {
+  res.cookie('XSRF-TOKEN', req.csrfToken());
+
+  return res.status(204).send();
+});
 
 app.post('/signupViaGoogle', (req, res) => {
   const client = new OAuth2Client(env.googleClientId);
