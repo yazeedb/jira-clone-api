@@ -1,14 +1,17 @@
 const express = require('express');
-const clientSessions = require('client-sessions');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const { OAuth2Client } = require('google-auth-library');
-const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
 const { getEnvVariables } = require('./env');
+const {
+  authMiddleware,
+  corsMiddleware,
+  sessionMiddleware,
+  csurfMiddleware
+} = require('./middlewares');
 
 const app = express();
-const twoSeconds = 2000;
 const port = 8000;
 const env = getEnvVariables();
 
@@ -23,112 +26,108 @@ const dbConnection = mysql.createConnection({
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, X-XSRF-TOKEN'
-  );
-  next();
-});
-
-app.use(
-  clientSessions({
-    cookieName: env.sessionName,
-    secret: env.sessionSecret,
-    duration: twoSeconds,
-    cookie: {
-      maxAge: twoSeconds,
-      httpOnly: true
-    }
-  })
-);
-
 app.use(cookieParser());
+app.use(corsMiddleware);
+app.use(sessionMiddleware);
 
-app.use(csurf({ cookie: true }));
+app
+  .post('/login', async (req, res) => {
+    const client = new OAuth2Client(env.googleClientId);
+    const { idToken } = req.body;
 
-app.get('/csrf-protection', (req, res) => {
-  res.cookie('XSRF-TOKEN', req.csrfToken());
-
-  return res.status(204).send();
-});
-
-app.post('/signupViaGoogle', (req, res) => {
-  const client = new OAuth2Client(env.googleClientId);
-  const { idToken } = req.body;
-
-  client
-    .verifyIdToken({
-      idToken,
-      audience: env.googleClientId
-    })
-    .then((ticket) => {
-      const { sub, email } = ticket.getPayload();
-      const sqlQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
-
-      dbConnection.query(sqlQuery, (error, results, fields) => {
-        if (error) {
-          throw error;
-        }
-
-        console.log('results:', results);
-
-        res.status(201).json({
-          message: 'User created!',
-          userId: sub
-        });
-      });
-    })
-    .catch(console.warn);
-});
-
-app.post('/login', (req, res) => {
-  const { idToken } = req.body;
-  const sqlQuery = `SELECT * FROM users WHERE googleId='${idToken}'`;
-
-  dbConnection.query(sqlQuery, (error, results, fields) => {
-    if (error) {
-      throw error;
-    }
-
-    if (results.length === 0) {
-      res.status(401).json({
-        message: 'User not found!'
+    if (!idToken) {
+      res.status(400).json({
+        message: 'No Google ID Token found!'
       });
 
       return;
     }
 
-    const [user] = results;
+    // Verify Google user
+    client
+      .verifyIdToken({
+        idToken,
+        audience: env.googleClientId
+      })
+      .then((loginTicket) => {
+        // Find user in our DB
+        const findUserQuery = `SELECT * FROM users WHERE googleId='${idToken}'`;
+
+        dbConnection.query(findUserQuery, (error, results, fields) => {
+          if (error) {
+            throw error;
+          }
+
+          if (results.length === 0) {
+            // Add user to DB
+            const { sub, email } = loginTicket.getPayload();
+            const sqlQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
+
+            dbConnection.query(sqlQuery, (error, results, fields) => {
+              if (error) {
+                throw error;
+              }
+
+              console.log('results:', results);
+
+              res.status(201).json({
+                message: 'User created!',
+                userId: sub
+              });
+            });
+          }
+
+          const [user] = results;
+
+          req[env.sessionName] = { user };
+
+          res.json({
+            message: 'Success!',
+            user
+          });
+        });
+      })
+      .catch((error) => {
+        res.status(401).json({
+          message: error.message
+        });
+      });
+  })
+
+  .use((req, res, next) => {
+    console.log(req.cookies);
+
+    next();
+  })
+  .use(csurfMiddleware)
+
+  .get('/csrf-protection', (req, res) => {
+    res.cookie(env.csrfCookieName, req.csrfToken());
+
+    return res.status(204).send();
+  })
+
+  .post('/fakeLogin', (req, res) => {
+    const user = { id: 12345 };
 
     req[env.sessionName] = { user };
 
     res.json({
-      message: 'Success!',
+      user,
+      message: 'Logged in'
+    });
+  })
+
+  // Start protecting routes
+  .use('/api/*', authMiddleware)
+
+  .get('/api/user', (req, res) => {
+    const { user } = req[env.sessionName];
+
+    res.json({
       user
     });
+  })
+  .listen(port, () => {
+    console.log('Listening on port', port);
   });
-});
-
-app.get('/user', (req, res) => {
-  const { user } = req[env.sessionName];
-
-  if (!user) {
-    res.status(401).json({
-      message: 'Unauthorized'
-    });
-
-    return;
-  }
-
-  res.json({
-    user,
-    message: 'Success!'
-  });
-});
-
-app.listen(port, () => {
-  console.log('Listening on port', port);
-});
