@@ -132,10 +132,10 @@ app
     });
   })
 
-  .get('*', (req, res) => {
+  .all('*', (req, res) => {
     res.status(404).json({
       message: 'Endpoint not found.'
-    })
+    });
   })
   .listen(port, () => {
     console.log('Listening on port', port);
