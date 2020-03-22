@@ -8,7 +8,8 @@ const {
   authMiddleware,
   corsMiddleware,
   sessionMiddleware,
-  csurfMiddleware
+  csrfMiddleware,
+  csrfErrorHandler
 } = require('./middlewares');
 
 const app = express();
@@ -23,15 +24,17 @@ const dbConnection = mysql.createConnection({
   port: env.db.port
 });
 
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-app.use(cookieParser());
-app.use(corsMiddleware);
-app.use(sessionMiddleware);
-
 app
-  .post('/login', async (req, res) => {
+  .use(bodyParser.urlencoded({ extended: false }))
+  .use(bodyParser.json())
+
+  .use(cookieParser())
+  .use(corsMiddleware)
+  .use(sessionMiddleware)
+  .use(csrfMiddleware)
+  .use(csrfErrorHandler)
+
+  .post('/login', csrfMiddleware, async (req, res) => {
     const client = new OAuth2Client(env.googleClientId);
     const { idToken } = req.body;
 
@@ -99,12 +102,12 @@ app
 
     next();
   })
-  .use(csurfMiddleware)
 
   .get('/csrf-protection', (req, res) => {
-    res.cookie(env.csrfCookieName, req.csrfToken());
-
-    return res.status(204).send();
+    res
+      .cookie(env.csrfCookieName, req.csrfToken())
+      .status(204)
+      .send();
   })
 
   .post('/fakeLogin', (req, res) => {
@@ -127,6 +130,12 @@ app
     res.json({
       user
     });
+  })
+
+  .get('*', (req, res) => {
+    res.status(404).json({
+      message: 'Endpoint not found.'
+    })
   })
   .listen(port, () => {
     console.log('Listening on port', port);

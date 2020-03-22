@@ -20,8 +20,7 @@ exports.authMiddleware = (req, res, next) => {
 };
 
 exports.corsMiddleware = (req, res, next) => {
-  console.log('passing through cors middleware');
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Origin', env.corsDomain);
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header(
     'Access-Control-Allow-Headers',
@@ -40,7 +39,17 @@ exports.sessionMiddleware = clientSessions({
   }
 });
 
-exports.csurfMiddleware = csurf({
+exports.csrfMiddleware = csurf({
   cookie: true,
   value: (req) => req.cookies[env.csrfCookieName]
 });
+
+exports.csrfErrorHandler = (err, req, res, next) => {
+  if (err.code !== 'EBADCSRFTOKEN') {
+    return next(err);
+  }
+
+  res.status(403).json({
+    message: 'Invalid CSRF Token. Form has been tampered with.'
+  });
+};
