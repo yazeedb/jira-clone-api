@@ -1,6 +1,5 @@
 const clientSessions = require('client-sessions');
 const csurf = require('csurf');
-
 const { getEnvVariables } = require('./env');
 
 const env = getEnvVariables();
@@ -35,12 +34,17 @@ exports.sessionMiddleware = clientSessions({
   duration: 5000,
   cookie: {
     maxAge: 5000,
-    httpOnly: true
+    httpOnly: true,
+    sameSite: true
   }
 });
 
 exports.csrfMiddleware = csurf({
-  cookie: true,
+  cookie: {
+    expires: 5000,
+    httpOnly: true,
+    sameSite: true
+  },
   value: (req) => req.cookies[env.csrfCookieName]
 });
 

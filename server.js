@@ -34,7 +34,7 @@ app
   .use(csrfMiddleware)
   .use(csrfErrorHandler)
 
-  .post('/login', csrfMiddleware, async (req, res) => {
+  .post('/login', async (req, res) => {
     const client = new OAuth2Client(env.googleClientId);
     const { idToken } = req.body;
 
@@ -95,12 +95,6 @@ app
           message: error.message
         });
       });
-  })
-
-  .use((req, res, next) => {
-    console.log(req.cookies);
-
-    next();
   })
 
   .get('/csrf-protection', (req, res) => {
