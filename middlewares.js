@@ -5,26 +5,28 @@ const { getEnvVariables } = require('./env');
 const env = getEnvVariables();
 
 exports.authMiddleware = (req, res, next) => {
-  const { user } = req[env.sessionName];
+  const session = req[env.sessionName];
 
-  if (!user) {
-    res.status(401).json({
-      message: 'Not authenticated.'
-    });
-
+  if (session && session.user) {
+    next();
     return;
   }
 
-  next();
+  res.json({
+    message: 'Not authenticated.',
+    statusCode: 401
+  });
 };
 
 exports.corsMiddleware = (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', env.corsDomain);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header(
-    'Access-Control-Allow-Headers',
-    `Origin, X-Requested-With, Content-Type, Accept, ${env.csrfCookieName}`
-  );
+  res
+    .header('Access-Control-Allow-Origin', env.corsDomain)
+    .header('Access-Control-Allow-Credentials', 'true')
+    .header(
+      'Access-Control-Allow-Headers',
+      `Origin, X-Requested-With, Content-Type, Accept, ${env.csrfCookieName}`
+    );
+
   next();
 };
 
@@ -34,17 +36,12 @@ exports.sessionMiddleware = clientSessions({
   duration: 5000,
   cookie: {
     maxAge: 5000,
-    httpOnly: true,
-    sameSite: true
+    httpOnly: true
   }
 });
 
 exports.csrfMiddleware = csurf({
-  cookie: {
-    expires: 5000,
-    httpOnly: true,
-    sameSite: true
-  },
+  cookie: true,
   value: (req) => req.cookies[env.csrfCookieName]
 });
 
@@ -53,7 +50,8 @@ exports.csrfErrorHandler = (err, req, res, next) => {
     return next(err);
   }
 
-  res.status(403).json({
-    message: 'Invalid CSRF Token. Form has been tampered with.'
+  res.json({
+    message: 'Invalid CSRF Token. Form has been tampered with.',
+    statusCode: 403
   });
 };

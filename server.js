@@ -28,8 +28,8 @@ app
   .use(bodyParser.urlencoded({ extended: false }))
   .use(bodyParser.json())
 
-  .use(cookieParser())
   .use(corsMiddleware)
+  .use(cookieParser())
   .use(sessionMiddleware)
   .use(csrfMiddleware)
   .use(csrfErrorHandler)
@@ -39,22 +39,24 @@ app
     const { idToken } = req.body;
 
     if (!idToken) {
-      res.status(400).json({
-        message: 'No Google ID Token found!'
+      res.json({
+        message: 'No Google ID Token found!',
+        statusCode: 400
       });
 
       return;
     }
 
-    // Verify Google user
     client
+      // Verify Google user
       .verifyIdToken({
         idToken,
         audience: env.googleClientId
       })
-      .then((loginTicket) => {
-        // Find user in our DB
-        const findUserQuery = `SELECT * FROM users WHERE googleId='${idToken}'`;
+      .then((loginTicket) => loginTicket.getPayload())
+      .then(({ sub, email }) => {
+        // Find user in DB
+        const findUserQuery = `SELECT * FROM users WHERE googleId='${sub}'`;
 
         dbConnection.query(findUserQuery, (error, results, fields) => {
           if (error) {
@@ -62,21 +64,13 @@ app
           }
 
           if (results.length === 0) {
-            // Add user to DB
-            const { sub, email } = loginTicket.getPayload();
+            // Add user if not exists
             const sqlQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
 
             dbConnection.query(sqlQuery, (error, results, fields) => {
               if (error) {
                 throw error;
               }
-
-              console.log('results:', results);
-
-              res.status(201).json({
-                message: 'User created!',
-                userId: sub
-              });
             });
           }
 
@@ -85,52 +79,44 @@ app
           req[env.sessionName] = { user };
 
           res.json({
-            message: 'Success!',
-            user
+            message: 'Success!'
           });
         });
       })
       .catch((error) => {
-        res.status(401).json({
-          message: error.message
+        res.json({
+          message: error.message,
+          statusCode: 401
         });
       });
-  })
-
-  .get('/csrf-protection', (req, res) => {
-    res
-      .cookie(env.csrfCookieName, req.csrfToken())
-      .status(204)
-      .send();
-  })
-
-  .post('/fakeLogin', (req, res) => {
-    const user = { id: 12345 };
-
-    req[env.sessionName] = { user };
-
-    res.json({
-      user,
-      message: 'Logged in'
-    });
   })
 
   // Start protecting routes
   .use('/api/*', authMiddleware)
 
   .get('/api/user', (req, res) => {
-    const { user } = req[env.sessionName];
+    res.json(req[env.sessionName]);
+  })
 
+  .all('*', (req, res, next) => {
+    res.cookie(env.csrfCookieName, req.csrfToken());
+
+    next();
+  })
+
+  .use((req, res) => {
     res.json({
-      user
+      message: 'Endpoint not found.',
+      statusCode: 404
     });
-  })
+  });
 
-  .all('*', (req, res) => {
-    res.status(404).json({
-      message: 'Endpoint not found.'
-    });
-  })
-  .listen(port, () => {
+// Don't go live during tests
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
     console.log('Listening on port', port);
   });
+}
+
+// Allow tests to import Express app
+exports.app = app;
