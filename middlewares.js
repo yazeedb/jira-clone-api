@@ -6,15 +6,15 @@ const env = getEnvVariables();
 
 exports.authMiddleware = (req, res, next) => {
   const session = req[env.sessionName];
+  console.log(session);
 
   if (session && session.user) {
     next();
     return;
   }
 
-  res.json({
-    message: 'Not authenticated.',
-    statusCode: 401
+  res.status(401).json({
+    message: 'Not authenticated.'
   });
 };
 
@@ -50,8 +50,7 @@ exports.csrfErrorHandler = (err, req, res, next) => {
     return next(err);
   }
 
-  res.json({
-    message: 'Invalid CSRF Token. Form has been tampered with.',
-    statusCode: 403
+  res.status(403).json({
+    message: 'Invalid CSRF Token. Form has been tampered with.'
   });
 };

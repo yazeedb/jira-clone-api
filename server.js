@@ -28,7 +28,7 @@ app
   .use(bodyParser.urlencoded({ extended: false }))
   .use(bodyParser.json())
 
-  .use(corsMiddleware)
+  // .use(corsMiddleware)
   .use(cookieParser())
   .use(sessionMiddleware)
   .use(csrfMiddleware)
@@ -39,9 +39,8 @@ app
     const { idToken } = req.body;
 
     if (!idToken) {
-      res.json({
-        message: 'No Google ID Token found!',
-        statusCode: 400
+      res.status(400).json({
+        message: 'No Google ID Token found!'
       });
 
       return;
@@ -84,9 +83,8 @@ app
         });
       })
       .catch((error) => {
-        res.json({
-          message: error.message,
-          statusCode: 401
+        res.status(401).json({
+          message: error.message
         });
       });
   })
@@ -105,9 +103,8 @@ app
   })
 
   .use((req, res) => {
-    res.json({
-      message: 'Endpoint not found.',
-      statusCode: 404
+    res.status(404).json({
+      message: 'Endpoint not found.'
     });
   });
 
