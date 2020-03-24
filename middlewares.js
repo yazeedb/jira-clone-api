@@ -33,9 +33,9 @@ exports.corsMiddleware = (req, res, next) => {
 exports.sessionMiddleware = clientSessions({
   cookieName: env.sessionName,
   secret: env.sessionSecret,
-  duration: 5000,
+  duration: 3000,
   cookie: {
-    maxAge: 5000,
+    maxAge: 3000,
     httpOnly: true
   }
 });

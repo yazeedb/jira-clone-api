@@ -6,7 +6,6 @@ const cookieParser = require('cookie-parser');
 const { getEnvVariables } = require('./env');
 const {
   authMiddleware,
-  corsMiddleware,
   sessionMiddleware,
   csrfMiddleware,
   csrfErrorHandler
@@ -28,7 +27,6 @@ app
   .use(bodyParser.urlencoded({ extended: false }))
   .use(bodyParser.json())
 
-  // .use(corsMiddleware)
   .use(cookieParser())
   .use(sessionMiddleware)
   .use(csrfMiddleware)
