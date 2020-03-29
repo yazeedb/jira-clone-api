@@ -32,7 +32,7 @@ app
   .use(csrfMiddleware)
   .use(csrfErrorHandler)
 
-  .post('/login', async (req, res) => {
+  .post('/login', (req, res) => {
     const client = new OAuth2Client(env.googleClientId);
     const { idToken } = req.body;
 
@@ -75,9 +75,7 @@ app
 
           req[env.sessionName] = { user };
 
-          res.json({
-            message: 'Success!'
-          });
+          res.status(204).send();
         });
       })
       .catch((error) => {
