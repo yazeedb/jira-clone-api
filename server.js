@@ -62,7 +62,7 @@ app
 
           if (results.length === 0) {
             // Add user if not exists
-            const sqlQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
+            const addUserQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
 
             dbConnection.query(sqlQuery, (error, results, fields) => {
               if (error) {
@@ -90,6 +90,45 @@ app
 
   .get('/api/user', (req, res) => {
     res.json(req[env.sessionName]);
+  })
+
+  .post('/api/completeSignup', (req, res) => {
+    const { user } = req[env.sessionName];
+    const signupFormData = req.body;
+
+    if (user.googleId !== signupFormData.googleId) {
+      res.status(400).json({
+        message: "Session and form Google IDs don't match!"
+      });
+
+      return;
+    }
+
+    const findUserQuery = `SELECT * FROM users WHERE googleId='${user.googleId}'`;
+
+    dbConnection.query(findUserQuery, (error, results, fields) => {
+      if (error) {
+        throw error;
+      }
+
+      if (results.length === 0) {
+        res.json(404).json({
+          message: 'User not found!'
+        });
+
+        return;
+      }
+
+      // const addUserQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
+
+      // dbConnection.query(sqlQuery, (error, results, fields) => {
+      //   if (error) {
+      //     throw error;
+      //   }
+      // });
+
+      res.status(204).send();
+    });
   })
 
   .all('*', (req, res, next) => {
