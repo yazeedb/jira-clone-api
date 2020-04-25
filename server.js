@@ -8,7 +8,7 @@ const {
   authMiddleware,
   sessionMiddleware,
   csrfMiddleware,
-  csrfErrorHandler
+  csrfErrorHandler,
 } = require('./middlewares');
 
 const app = express();
@@ -20,7 +20,7 @@ const dbConnection = mysql.createConnection({
   user: env.db.username,
   password: env.db.password,
   database: env.db.dbName,
-  port: env.db.port
+  port: env.db.port,
 });
 
 app
@@ -38,7 +38,7 @@ app
 
     if (!idToken) {
       res.status(400).json({
-        message: 'No Google ID Token found!'
+        message: 'No Google ID Token found!',
       });
 
       return;
@@ -48,7 +48,7 @@ app
       // Verify Google user
       .verifyIdToken({
         idToken,
-        audience: env.googleClientId
+        audience: env.googleClientId,
       })
       .then((loginTicket) => loginTicket.getPayload())
       .then(({ sub, email }) => {
@@ -64,7 +64,7 @@ app
             // Add user if not exists
             const addUserQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
 
-            dbConnection.query(sqlQuery, (error, results, fields) => {
+            dbConnection.query(addUserQuery, (error, results, fields) => {
               if (error) {
                 throw error;
               }
@@ -80,7 +80,7 @@ app
       })
       .catch((error) => {
         res.status(401).json({
-          message: error.message
+          message: error.message,
         });
       });
   })
@@ -89,6 +89,7 @@ app
   .use('/api/*', authMiddleware)
 
   .get('/api/user', (req, res) => {
+    // TODO: Find a way to add user's {belongsToOrg: boolean}
     res.json(req[env.sessionName]);
   })
 
@@ -98,7 +99,7 @@ app
 
     if (user.googleId !== signupFormData.googleId) {
       res.status(400).json({
-        message: "Session and form Google IDs don't match!"
+        message: "Session and form Google IDs don't match!",
       });
 
       return;
@@ -113,7 +114,7 @@ app
 
       if (results.length === 0) {
         res.json(404).json({
-          message: 'User not found!'
+          message: 'User not found!',
         });
 
         return;
@@ -131,6 +132,12 @@ app
     });
   })
 
+  .get('/api/orgs', (req, res) => {
+    res.json({
+      orgs: [],
+    });
+  })
+
   .all('*', (req, res, next) => {
     res.cookie(env.csrfCookieName, req.csrfToken());
 
@@ -139,7 +146,7 @@ app
 
   .use((req, res) => {
     res.status(404).json({
-      message: 'Endpoint not found.'
+      message: 'Endpoint not found.',
     });
   });
 
