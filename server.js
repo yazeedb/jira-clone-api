@@ -1,6 +1,7 @@
+const uniqId = require('uniqid');
+const fs = require('fs');
 const express = require('express');
 const bodyParser = require('body-parser');
-const mysql = require('mysql');
 const { OAuth2Client } = require('google-auth-library');
 const cookieParser = require('cookie-parser');
 const { getEnvVariables } = require('./env');
@@ -14,14 +15,6 @@ const {
 const app = express();
 const port = 8000;
 const env = getEnvVariables();
-
-const dbConnection = mysql.createConnection({
-  host: env.db.host,
-  user: env.db.username,
-  password: env.db.password,
-  database: env.db.dbName,
-  port: env.db.port,
-});
 
 app
   .use(bodyParser.urlencoded({ extended: false }))
@@ -52,31 +45,20 @@ app
       })
       .then((loginTicket) => loginTicket.getPayload())
       .then(({ sub, email }) => {
-        // Find user in DB
-        const findUserQuery = `SELECT * FROM users WHERE googleId='${sub}'`;
+        const db = JSON.parse(fs.readFileSync('./db.json'));
+        const existingUser = db.users.find((u) => u.sub === sub);
 
-        dbConnection.query(findUserQuery, (error, results, fields) => {
-          if (error) {
-            throw error;
-          }
+        if (!existingUser) {
+          const newUser = { sub, email, orgs: [] };
 
-          if (results.length === 0) {
-            // Add user if not exists
-            const addUserQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
+          db.users.push(newUser);
+          req[env.sessionName] = { user: newUser };
+          fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+        } else {
+          req[env.sessionName] = { user: existingUser };
+        }
 
-            dbConnection.query(addUserQuery, (error, results, fields) => {
-              if (error) {
-                throw error;
-              }
-            });
-          }
-
-          const [user] = results;
-
-          req[env.sessionName] = { user };
-
-          res.status(204).send();
-        });
+        res.status(204).send();
       })
       .catch((error) => {
         res.status(401).json({
@@ -89,7 +71,6 @@ app
   .use('/api/*', authMiddleware)
 
   .get('/api/user', (req, res) => {
-    // TODO: Find a way to add user's {belongsToOrg: boolean}
     res.json(req[env.sessionName]);
   })
 
@@ -97,7 +78,7 @@ app
     const { user } = req[env.sessionName];
     const signupFormData = req.body;
 
-    if (user.googleId !== signupFormData.googleId) {
+    if (user.sub !== signupFormData.sub) {
       res.status(400).json({
         message: "Session and form Google IDs don't match!",
       });
@@ -105,37 +86,79 @@ app
       return;
     }
 
-    const findUserQuery = `SELECT * FROM users WHERE googleId='${user.googleId}'`;
+    const db = JSON.parse(fs.readFileSync('./db.json'));
 
-    dbConnection.query(findUserQuery, (error, results, fields) => {
-      if (error) {
-        throw error;
+    const existingUser = db.users.find(
+      (u) => u.googleClientId === user.googleClientId
+    );
+
+    if (!existingUser) {
+      res.status(404).json({
+        message: 'User not found!',
+      });
+    } else {
+      for (const key in signupFormData) {
+        // ensure email is never overwritten
+        if (key !== 'email') {
+          existingUser[key] = signupFormData[key];
+        }
       }
 
-      if (results.length === 0) {
-        res.json(404).json({
-          message: 'User not found!',
-        });
+      fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 
-        return;
-      }
-
-      // const addUserQuery = `INSERT INTO users (googleId, email) VALUES ("${sub}", "${email}")`;
-
-      // dbConnection.query(sqlQuery, (error, results, fields) => {
-      //   if (error) {
-      //     throw error;
-      //   }
-      // });
+      req[env.sessionName] = { user: existingUser };
 
       res.status(204).send();
-    });
+    }
   })
 
   .get('/api/orgs', (req, res) => {
-    res.json({
-      orgs: [],
-    });
+    console.log(req[env.sessionName]);
+    const { user } = req[env.sessionName];
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
+
+    if (!existingUser) {
+      res.status(400).json({
+        message: 'User not found!',
+      });
+    } else {
+      res.json({
+        orgs: existingUser.orgs,
+      });
+    }
+  })
+  .post('/api/orgs', (req, res) => {
+    const { org } = req.body;
+    const { user } = req[env.sessionName];
+
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
+
+    if (!existingUser) {
+      res.status(400).json({
+        message: 'User not found!',
+      });
+    } else {
+      const orgId = uniqId();
+
+      existingUser.orgs = [
+        {
+          id: orgId,
+          ownerId: existingUser.sub,
+          name: org,
+          dateCreated: new Date(),
+          projects: [],
+        },
+      ];
+
+      fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+
+      res.json({
+        message: 'Org created!',
+        orgId,
+      });
+    }
   })
 
   .all('*', (req, res, next) => {

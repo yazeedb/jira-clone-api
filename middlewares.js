@@ -6,7 +6,6 @@ const env = getEnvVariables();
 
 exports.authMiddleware = (req, res, next) => {
   const session = req[env.sessionName];
-  console.log(session);
 
   if (session && session.user) {
     next();
@@ -14,7 +13,7 @@ exports.authMiddleware = (req, res, next) => {
   }
 
   res.status(401).json({
-    message: 'Not authenticated.'
+    message: 'Not authenticated.',
   });
 };
 
@@ -37,13 +36,13 @@ exports.sessionMiddleware = clientSessions({
   duration: ONE_HOUR,
   cookie: {
     maxAge: ONE_HOUR,
-    httpOnly: true
-  }
+    httpOnly: true,
+  },
 });
 
 exports.csrfMiddleware = csurf({
   cookie: true,
-  value: (req) => req.cookies[env.csrfCookieName]
+  value: (req) => req.cookies[env.csrfCookieName],
 });
 
 exports.csrfErrorHandler = (err, req, res, next) => {
@@ -52,6 +51,14 @@ exports.csrfErrorHandler = (err, req, res, next) => {
   }
 
   res.status(403).json({
-    message: 'Invalid CSRF Token. Form has been tampered with.'
+    message: 'Invalid CSRF Token. Form has been tampered with.',
   });
+};
+
+exports.loggerMiddleware = (db) => (req, res, next) => {
+  console.log('LOGGER: Request', req.method, req.url);
+  console.log('LOGGER: db', db);
+  console.log('LOGGER: session', req[env.sessionName]);
+
+  next();
 };
