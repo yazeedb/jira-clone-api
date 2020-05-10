@@ -160,6 +160,26 @@ app
       });
     }
   })
+  .get('/api/orgs/:orgId/projects', (req, res) => {
+    // Find associated user
+    const { user } = req[env.sessionName];
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
+
+    // Find associated org
+    const { orgId } = req.params;
+    const org = existingUser.orgs.find((o) => o.id === orgId);
+
+    if (!org) {
+      res.status(404).json({
+        message: 'No projects found!',
+      });
+    } else {
+      res.json({
+        projects: org.projects,
+      });
+    }
+  })
 
   .all('*', (req, res, next) => {
     res.cookie(env.csrfCookieName, req.csrfToken());

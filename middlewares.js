@@ -1,3 +1,4 @@
+const fs = require('fs');
 const clientSessions = require('client-sessions');
 const csurf = require('csurf');
 const { getEnvVariables } = require('./env');
@@ -6,15 +7,27 @@ const env = getEnvVariables();
 
 exports.authMiddleware = (req, res, next) => {
   const session = req[env.sessionName];
+  const sessionPresent = session && session.user;
 
-  if (session && session.user) {
-    next();
-    return;
+  if (!sessionPresent) {
+    return res.status(401).json({
+      message: 'Not authenticated',
+    });
   }
 
-  res.status(401).json({
-    message: 'Not authenticated.',
-  });
+  // Check DB that user exists
+  const db = JSON.parse(fs.readFileSync('./db.json'));
+  const existingUser = db.users.find((u) => u.sub === session.user.sub);
+
+  if (!existingUser) {
+    session.reset();
+
+    return res.status(401).json({
+      message: 'Session user not found!',
+    });
+  }
+
+  next();
 };
 
 exports.corsMiddleware = (req, res, next) => {
