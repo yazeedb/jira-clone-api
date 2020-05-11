@@ -130,60 +130,56 @@ app
     }
   })
   .post('/api/orgs', (req, res) => {
-    setTimeout(() => {
-      const { org } = req.body;
-      const { user } = req[env.sessionName];
+    const { org } = req.body;
+    const { user } = req[env.sessionName];
 
-      const db = JSON.parse(fs.readFileSync('./db.json'));
-      const existingUser = db.users.find((u) => u.sub === user.sub);
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
 
-      if (!existingUser) {
-        res.status(400).json({
-          message: 'User not found!'
-        });
-      } else {
-        const orgId = uniqId();
+    if (!existingUser) {
+      res.status(400).json({
+        message: 'User not found!'
+      });
+    } else {
+      const orgId = uniqId();
 
-        existingUser.orgs = [
-          {
-            id: orgId,
-            ownerId: existingUser.sub,
-            name: org,
-            dateCreated: new Date(),
-            projects: []
-          }
-        ];
+      existingUser.orgs = [
+        {
+          id: orgId,
+          ownerId: existingUser.sub,
+          name: org,
+          dateCreated: new Date(),
+          projects: []
+        }
+      ];
 
-        fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+      fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 
-        res.json({
-          message: 'Org created!',
-          orgId
-        });
-      }
-    }, 1200);
+      res.json({
+        message: 'Org created!',
+        orgId
+      });
+    }
   })
   .get('/api/orgs/:orgId/projects', (req, res) => {
-    setTimeout(() => {
-      // Find associated user
-      const { user } = req[env.sessionName];
-      const db = JSON.parse(fs.readFileSync('./db.json'));
-      const existingUser = db.users.find((u) => u.sub === user.sub);
+    // Find associated user
+    const { user } = req[env.sessionName];
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
 
-      // Find associated org
-      const { orgId } = req.params;
-      const org = existingUser.orgs.find((o) => o.id === orgId);
+    // Find associated org
+    const { orgId } = req.params;
+    const org = existingUser.orgs.find((o) => o.id === orgId);
 
-      if (!org) {
-        res.status(404).json({
-          message: 'No projects found!'
-        });
-      } else {
-        res.json({
-          projects: org.projects
-        });
-      }
-    }, 1200);
+    if (!org) {
+      res.status(404).json({
+        message: 'No projects found!'
+      });
+    } else {
+      res.json({
+        projects: org.projects
+      });
+    }
   })
 
   .all('*', (req, res, next) => {
