@@ -25,7 +25,7 @@ app
   .use(sessionMiddleware)
   .use(csrfMiddleware)
   .use(csrfErrorHandler)
-  .use(latencyMiddleware)
+  // .use(latencyMiddleware)
 
   .post('/login', (req, res) => {
     const client = new OAuth2Client(env.googleClientId);
