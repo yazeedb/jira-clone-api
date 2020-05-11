@@ -3,17 +3,9 @@
     {
       "sub": "102539226751430094750",
       "email": "ybzadough@gmail.com",
-      "orgs": [
-        {
-          "id": "gp7l3iika1hanx3",
-          "ownerId": "102539226751430094750",
-          "name": "Hello World",
-          "dateCreated": "2020-05-10T19:57:02.486Z",
-          "projects": []
-        }
-      ],
-      "firstName": "Yazeed",
-      "lastName": "Bzadogh"
+      "orgs": [],
+      "firstName": "y",
+      "lastName": "b"
     }
   ]
 }

@@ -11,7 +11,7 @@ exports.authMiddleware = (req, res, next) => {
 
   if (!sessionPresent) {
     return res.status(401).json({
-      message: 'Not authenticated',
+      message: 'Not authenticated'
     });
   }
 
@@ -23,7 +23,7 @@ exports.authMiddleware = (req, res, next) => {
     session.reset();
 
     return res.status(401).json({
-      message: 'Session user not found!',
+      message: 'Session user not found!'
     });
   }
 
@@ -49,13 +49,13 @@ exports.sessionMiddleware = clientSessions({
   duration: ONE_HOUR,
   cookie: {
     maxAge: ONE_HOUR,
-    httpOnly: true,
-  },
+    httpOnly: true
+  }
 });
 
 exports.csrfMiddleware = csurf({
   cookie: true,
-  value: (req) => req.cookies[env.csrfCookieName],
+  value: (req) => req.cookies[env.csrfCookieName]
 });
 
 exports.csrfErrorHandler = (err, req, res, next) => {
@@ -64,7 +64,7 @@ exports.csrfErrorHandler = (err, req, res, next) => {
   }
 
   res.status(403).json({
-    message: 'Invalid CSRF Token. Form has been tampered with.',
+    message: 'Invalid CSRF Token. Form has been tampered with.'
   });
 };
 
@@ -74,4 +74,8 @@ exports.loggerMiddleware = (db) => (req, res, next) => {
   console.log('LOGGER: session', req[env.sessionName]);
 
   next();
+};
+
+exports.latencyMiddleware = (req, res, next) => {
+  setTimeout(next, 1500);
 };

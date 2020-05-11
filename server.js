@@ -10,6 +10,7 @@ const {
   sessionMiddleware,
   csrfMiddleware,
   csrfErrorHandler,
+  latencyMiddleware
 } = require('./middlewares');
 
 const app = express();
@@ -24,6 +25,7 @@ app
   .use(sessionMiddleware)
   .use(csrfMiddleware)
   .use(csrfErrorHandler)
+  .use(latencyMiddleware)
 
   .post('/login', (req, res) => {
     const client = new OAuth2Client(env.googleClientId);
@@ -31,7 +33,7 @@ app
 
     if (!idToken) {
       res.status(400).json({
-        message: 'No Google ID Token found!',
+        message: 'No Google ID Token found!'
       });
 
       return;
@@ -41,7 +43,7 @@ app
       // Verify Google user
       .verifyIdToken({
         idToken,
-        audience: env.googleClientId,
+        audience: env.googleClientId
       })
       .then((loginTicket) => loginTicket.getPayload())
       .then(({ sub, email }) => {
@@ -62,7 +64,7 @@ app
       })
       .catch((error) => {
         res.status(401).json({
-          message: error.message,
+          message: error.message
         });
       });
   })
@@ -80,7 +82,7 @@ app
 
     if (user.sub !== signupFormData.sub) {
       res.status(400).json({
-        message: "Session and form Google IDs don't match!",
+        message: "Session and form Google IDs don't match!"
       });
 
       return;
@@ -94,7 +96,7 @@ app
 
     if (!existingUser) {
       res.status(404).json({
-        message: 'User not found!',
+        message: 'User not found!'
       });
     } else {
       for (const key in signupFormData) {
@@ -113,72 +115,75 @@ app
   })
 
   .get('/api/orgs', (req, res) => {
-    console.log(req[env.sessionName]);
     const { user } = req[env.sessionName];
     const db = JSON.parse(fs.readFileSync('./db.json'));
     const existingUser = db.users.find((u) => u.sub === user.sub);
 
     if (!existingUser) {
       res.status(400).json({
-        message: 'User not found!',
+        message: 'User not found!'
       });
     } else {
       res.json({
-        orgs: existingUser.orgs,
+        orgs: existingUser.orgs
       });
     }
   })
   .post('/api/orgs', (req, res) => {
-    const { org } = req.body;
-    const { user } = req[env.sessionName];
+    setTimeout(() => {
+      const { org } = req.body;
+      const { user } = req[env.sessionName];
 
-    const db = JSON.parse(fs.readFileSync('./db.json'));
-    const existingUser = db.users.find((u) => u.sub === user.sub);
+      const db = JSON.parse(fs.readFileSync('./db.json'));
+      const existingUser = db.users.find((u) => u.sub === user.sub);
 
-    if (!existingUser) {
-      res.status(400).json({
-        message: 'User not found!',
-      });
-    } else {
-      const orgId = uniqId();
+      if (!existingUser) {
+        res.status(400).json({
+          message: 'User not found!'
+        });
+      } else {
+        const orgId = uniqId();
 
-      existingUser.orgs = [
-        {
-          id: orgId,
-          ownerId: existingUser.sub,
-          name: org,
-          dateCreated: new Date(),
-          projects: [],
-        },
-      ];
+        existingUser.orgs = [
+          {
+            id: orgId,
+            ownerId: existingUser.sub,
+            name: org,
+            dateCreated: new Date(),
+            projects: []
+          }
+        ];
 
-      fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+        fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 
-      res.json({
-        message: 'Org created!',
-        orgId,
-      });
-    }
+        res.json({
+          message: 'Org created!',
+          orgId
+        });
+      }
+    }, 1200);
   })
   .get('/api/orgs/:orgId/projects', (req, res) => {
-    // Find associated user
-    const { user } = req[env.sessionName];
-    const db = JSON.parse(fs.readFileSync('./db.json'));
-    const existingUser = db.users.find((u) => u.sub === user.sub);
+    setTimeout(() => {
+      // Find associated user
+      const { user } = req[env.sessionName];
+      const db = JSON.parse(fs.readFileSync('./db.json'));
+      const existingUser = db.users.find((u) => u.sub === user.sub);
 
-    // Find associated org
-    const { orgId } = req.params;
-    const org = existingUser.orgs.find((o) => o.id === orgId);
+      // Find associated org
+      const { orgId } = req.params;
+      const org = existingUser.orgs.find((o) => o.id === orgId);
 
-    if (!org) {
-      res.status(404).json({
-        message: 'No projects found!',
-      });
-    } else {
-      res.json({
-        projects: org.projects,
-      });
-    }
+      if (!org) {
+        res.status(404).json({
+          message: 'No projects found!'
+        });
+      } else {
+        res.json({
+          projects: org.projects
+        });
+      }
+    }, 1200);
   })
 
   .all('*', (req, res, next) => {
@@ -189,7 +194,7 @@ app
 
   .use((req, res) => {
     res.status(404).json({
-      message: 'Endpoint not found.',
+      message: 'Endpoint not found.'
     });
   });
 

@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const db = {
-  users: [],
+  users: []
 };
 
 fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
