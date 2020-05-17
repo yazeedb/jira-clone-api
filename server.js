@@ -23,8 +23,8 @@ app
 
   .use(cookieParser())
   .use(sessionMiddleware)
-  .use(csrfMiddleware)
-  .use(csrfErrorHandler)
+  // .use(csrfMiddleware)
+  // .use(csrfErrorHandler)
   // .use(latencyMiddleware)
 
   .post('/login', (req, res) => {
@@ -183,7 +183,7 @@ app
   })
 
   .all('*', (req, res, next) => {
-    res.cookie(env.csrfCookieName, req.csrfToken());
+    // res.cookie(env.csrfCookieName, req.csrfToken());
 
     next();
   })
