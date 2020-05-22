@@ -5,13 +5,7 @@ const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
 const cookieParser = require('cookie-parser');
 const { getEnvVariables } = require('./env');
-const {
-  authMiddleware,
-  sessionMiddleware,
-  csrfMiddleware,
-  csrfErrorHandler,
-  latencyMiddleware
-} = require('./middlewares');
+const { authMiddleware, sessionMiddleware } = require('./middlewares');
 
 const app = express();
 const port = 8000;
@@ -23,9 +17,6 @@ app
 
   .use(cookieParser())
   .use(sessionMiddleware)
-  // .use(csrfMiddleware)
-  // .use(csrfErrorHandler)
-  // .use(latencyMiddleware)
 
   .post('/login', (req, res) => {
     const client = new OAuth2Client(env.googleClientId);

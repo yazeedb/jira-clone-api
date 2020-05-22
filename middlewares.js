@@ -75,7 +75,3 @@ exports.loggerMiddleware = (db) => (req, res, next) => {
 
   next();
 };
-
-exports.latencyMiddleware = (req, res, next) => {
-  setTimeout(next, 1500);
-};
