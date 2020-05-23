@@ -120,6 +120,7 @@ app
       });
     }
   })
+
   .post('/api/orgs', (req, res) => {
     const { org } = req.body;
     const { user } = req[env.sessionName];
@@ -152,6 +153,7 @@ app
       });
     }
   })
+
   .get('/api/orgs/:orgId/projects', (req, res) => {
     // Find associated user
     const { user } = req[env.sessionName];
@@ -170,6 +172,54 @@ app
       res.json({
         projects: org.projects
       });
+    }
+  })
+  .post('/api/orgs/:orgId/projects', (req, res) => {
+    // Find associated user
+    const { user } = req[env.sessionName];
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
+
+    // Find associated org
+    const { orgId } = req.params;
+    const org = existingUser.orgs.find((o) => o.id === orgId);
+
+    if (!org) {
+      res.status(404).json({
+        message: 'Org not found'
+      });
+    } else {
+      const { projectName, key } = req.body;
+      console.log(req.body);
+
+      const existingProject = org.projects.find((p) => p.name === projectName);
+
+      if (existingProject) {
+        console.log('existingProject', existingProject);
+        return res.status(400).json({
+          message: 'A project with that name already exists'
+        });
+      }
+
+      const newProject = {
+        id: uniqId(),
+        name: projectName,
+        key,
+        uiSequence: ['TO DO', 'IN PROGRESS', 'DONE'],
+        columns: [
+          { name: 'TO DO', tasks: [], taskLimit: null },
+          { name: 'IN PROGRESS', tasks: [], taskLimit: null },
+          { name: 'DONE', tasks: [], taskLimit: null }
+        ]
+      };
+
+      console.log(newProject);
+
+      org.projects.push(newProject);
+
+      fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+
+      res.json({ project: newProject });
     }
   })
 
