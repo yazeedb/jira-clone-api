@@ -190,7 +190,6 @@ app
       });
     } else {
       const { projectName, key } = req.body;
-      console.log(req.body);
 
       const existingProject = org.projects.find((p) => p.name === projectName);
 
@@ -221,6 +220,35 @@ app
 
       res.json({ project: newProject });
     }
+  })
+  .get('/api/orgs/:orgId/validateProjectName', (req, res) => {
+    // Find associated user
+    const { user } = req[env.sessionName];
+    const db = JSON.parse(fs.readFileSync('./db.json'));
+    const existingUser = db.users.find((u) => u.sub === user.sub);
+
+    // Find associated org
+    const { orgId } = req.params;
+    const org = existingUser.orgs.find((o) => o.id === orgId);
+
+    if (!org) {
+      return res.status(404).json({
+        message: 'Org not found'
+      });
+    }
+
+    const { projectName } = req.query;
+    const existingProject = org.projects.find((p) => p.name === projectName);
+
+    if (existingProject) {
+      return res.json({
+        available: false
+      });
+    }
+
+    return res.json({
+      available: true
+    });
   })
 
   .all('*', (req, res, next) => {
